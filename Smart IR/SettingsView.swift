@@ -4,11 +4,14 @@
 //
 
 import AppKit
+import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
     @State var config: HubConfig
     let onClose: (HubConfig?) -> Void
+    @State private var launchAtLogin = SMAppService.mainApp.status
+    @State private var launchError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +38,19 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                Section {
+                    Toggle("Launch at Login", isOn: Binding(get: { launchAtLogin == .enabled }, set: setLaunchAtLogin))
+                } footer: {
+                    if launchAtLogin == .requiresApproval {
+                        Button("Allow in Login Items settings") { SMAppService.openSystemSettingsLoginItems() }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                    } else if let launchError {
+                        Text(launchError)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
             }
             .formStyle(.grouped)
             .scrollDisabled(true)
@@ -53,6 +69,20 @@ struct SettingsView: View {
             }
             .padding([.horizontal, .bottom], 16)
         }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+            launchError = nil
+        } catch {
+            launchError = error.localizedDescription
+        }
+        launchAtLogin = SMAppService.mainApp.status
     }
 
     private var trimmed: HubConfig {
